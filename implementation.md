@@ -46,14 +46,36 @@ Status key: **Done**, **Next**, **Planned**.
 **Steps**
 
 1. Declare the inputs: the Zoho invoice export as the file, and Cash, AFS and PIE amounts as manual entries. **Done:** the AFS amount is read from the password-protected AFS settlement report (its Total row) instead of being typed; Cash, PIE and the sales date are typed.
-2. Clean the Zoho file: keep the agreed columns, drop the rest, keep the original sheet and add the cleaned one, and separate the dates.
-3. Classify each line (normal product, EVD, Kunooz, KFC) with conditions stored as rules, so Finance can adjust them.
+2. Clean the Zoho file: keep the agreed columns, drop the rest, keep the original sheet and add the cleaned one, and separate the dates. **Done:** each run gives back the Zoho file under its own name, with the original sheet as it was plus a new "Formatted" sheet holding only Invoice Date, Invoice Number, Customer Name, Company Name, Total, Item Name, Quantity, Item Price, SKU and Sales Person (rule `zoho_columns`), with an empty row between dates. The stored upload itself is never changed.
+3. Classify each line (normal product, EVD, Kunooz, KFC) with conditions stored as rules, so Finance can adjust them. **Done:** rule `item_types` (KFC, then Kunooz, then EVD by Item Name; anything else is Normal).
 4. Reconcile: sum of payments against the Zoho total, and the difference (the Batelco marketing fund). **Done:** marketing fund = Zoho total - (Cash + AFS + PIE); the worked example for 18/10/2026 gives 43.993.
 5. Build every ERP entry the accountant types: Direct Sales Invoice, the EVD/KFC credit note, the cash receipt, the two bank receipts with their commissions, and the marketing fund credit note. Check that the sales side equals the Zoho total.
+   - **4a Direct Sales Invoice: Done.** Result tab "Direct Sales Invoice": normal products by SKU, VANILASIM (EVD + Kunooz quantities, no KFC, price 0), 0108002 Kunooz commission (2 / 1.1 = 1.818 per unit) and ESIM9.5 (Kunooz quantity, price "From ERP"), with the Zoho items and SKUs behind each line for reference. Codes and rates in rule `direct_sales_invoice`. Matches page 3 for 03/10/2026.
+   - **4b Credit Note EVD + KFC: Done.** Tab "Credit Note EVD + KFC" shows the calculation (EVD = quantity x the price at the end of the SKU; KFC quantity is already the amount); tab "Credit Note (JV)" shows debit CAUSEWAY = the total and the credit line for the KFC terminal account (from the Zoho item), with no amount. Accounts in rule `credit_note`. Matches page 4: 158.000 for 03/10/2026.
+   - **5a-5c Receipts: Done.** Tabs "Receipt (Cash)" (CAUSEWAY = cash), "Receipt (AFS)" (CAUSEWAY = AFS total, AFS = -2.2%, cheque "AFS <batch>") and "Receipt (PIE)" (CAUSEWAY = PIE total, PAYME = -1.65%, cheque "MSWIPE DD/MM/YYYY"). A warning shows if 2.2% differs from the AFS file's Commission + VAT. Accounts and rates in rule `receipts`. Matches page 5 (88.998, 211.452).
+   - **6 Credit Note, Batelco marketing fund: Next** (page 6: credit CAUSEWAY, debit 201002004001 with the difference).
+   - **Check, sales side = Zoho total: Next.** Needs the ESIM9.5 price (see open points).
 6. Show all of this on screen in the order it is typed into PACT, and produce the Excel output in the agreed format.
-7. Store rates, account codes and product-code mappings as rules, starting from the confirmed values.
-8. Test against the worked example so every total matches to the fils.
+7. Store rates, account codes and product-code mappings as rules, starting from the confirmed values. **Mostly done:** rules `zoho_columns`, `item_types`, `direct_sales_invoice`, `credit_note` and `receipts` hold them; values still to be confirmed are listed under open points.
+8. Test against the worked example so every total matches to the fils. **Done for pages 2-5:** automated tests check the cleaned Zoho sheet, the Direct Sales Invoice, the credit note and the receipts against the procedure examples (37 tests).
 9. Walk through it with the accountant on a real day, then compare a week of portal results with their manual results before switching over.
+
+**Screen changes made during Phase 2**
+
+- Images: zoom with the mouse wheel (towards the cursor), drag to move, double-click to zoom in or back to fit, and - / % / + / Fit buttons and keys. Still view-only, never processed.
+- Preview and result: an **Expand** button hides the inputs so the panel uses the full width. Columns of sheets without a header row show Excel letters (A, B, C...), so wide sheets like the AFS report fit and its Total row is visible. Hovering a cell shows its full text.
+- Result tiles (Zoho total, Cash + AFS + PIE, Marketing fund) are larger.
+- "From ERP" cells are greyed and can't be selected or copied, so they aren't pasted into the ERP by mistake.
+- After a page refresh the run screen asks "Keep your previous work?": keep brings back the files, entries and last result (file passwords are never saved and are typed again); start fresh clears them. Works within the same browser tab.
+- Pressing Run automation first shows the typed values (sales date, cash, PIE) for confirmation; "Go back and edit" cancels.
+
+**Open points to confirm with Finance**
+
+- Item prices and where they come from: ESIM9.5 at 7.500 (not in Zoho), whether the Zoho Item Price always equals the ERP price for normal products, whether the EVD price is always the number at the end of the SKU, and whether the Kunooz commission of 2 is fixed. A message for the accountant was drafted on 26 Oct 2026.
+- The credit account name for KFC 1 (terminal 056194010436028); only KFC 2 (CAUSEWAY CASH SALES 2) is known.
+- How "eSIM 12 (kunooz)" is posted; today it counts under ESIM9.5.
+- Whether a day with both KFC terminals gives two credit lines.
+- Cash receipt date (posted the next day?) and VAT on ESIM9.5, from the notes.
 
 **Done when** the accountant completes a day's posting from the portal in 5 minutes or less and a week of results matches the manual figures exactly.
 

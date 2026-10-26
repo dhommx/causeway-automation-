@@ -46,9 +46,11 @@ def test_upload_preview_run_download(client):
     assert run["rule_version"] == 1
     assert run["result"]["metrics"][2]["value"] == "43.993"
     outputs = [f for f in run["files"] if f["role"] == "output"]
-    assert len(outputs) == 1
-    download = client.get(f"/api/v1/files/{outputs[0]['file']['id']}/download")
-    assert download.status_code == 200 and download.content[:2] == b"PK"
+    # The reconciliation workbook, then the Zoho file with its formatted sheet.
+    assert len(outputs) == 2
+    for out in outputs:
+        download = client.get(f"/api/v1/files/{out['file']['id']}/download")
+        assert download.status_code == 200 and download.content[:2] == b"PK"
 
     actions = [
         e["action"] for e in client.get("/api/v1/audit", params={"entity_id": run["id"]}).json()

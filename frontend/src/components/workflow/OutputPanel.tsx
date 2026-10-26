@@ -1,9 +1,10 @@
-import { Eye, FileSpreadsheet, ListChecks } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Eye, FileSpreadsheet, ListChecks, Maximize2, Minimize2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import { isImage } from "../../lib/api";
 import { usePreview } from "../../lib/files";
 import { useRun } from "../../lib/runs";
+import Button from "../ui/Button";
 import DataGrid from "../ui/DataGrid";
 import ImageViewer from "./ImageViewer";
 import EmptyState from "../ui/EmptyState";
@@ -14,34 +15,49 @@ import type { SlotFile } from "./RunTab";
 
 type View = "preview" | "result";
 
-export default function OutputPanel({ selectedFile, runId }: { selectedFile: SlotFile | null; runId: string | null }) {
+type Props = {
+  selectedFile: SlotFile | null;
+  runId: string | null;
+  expanded: boolean;
+  onToggleExpanded: () => void;
+};
+
+export default function OutputPanel({ selectedFile, runId, expanded, onToggleExpanded }: Props) {
   const [view, setView] = useState<View>("preview");
   const { data: run } = useRun(runId);
 
   // A new run switches to its result; choosing another file switches back to the preview.
+  // When both change at once (work restored after a refresh), the result wins.
+  const fileId = selectedFile?.file.id ?? null;
+  const last = useRef({ runId, fileId });
   useEffect(() => {
-    if (runId) setView("result");
-  }, [runId]);
-  useEffect(() => {
-    if (selectedFile) setView("preview");
-  }, [selectedFile?.file.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (runId && runId !== last.current.runId) setView("result");
+    else if (fileId && fileId !== last.current.fileId) setView("preview");
+    last.current = { runId, fileId };
+  }, [runId, fileId]);
 
   return (
     <Panel
       scroll={false}
       title={view === "preview" ? (selectedFile?.file.original_name ?? "Preview") : "Result"}
       actions={
-        runId && (
-          <Tabs
-            size="sm"
-            value={view}
-            onChange={setView}
-            tabs={[
-              { value: "preview", label: "Preview", icon: <Eye className="size-3.5" /> },
-              { value: "result", label: "Result", icon: <ListChecks className="size-3.5" /> },
-            ]}
-          />
-        )
+        <>
+          {runId && (
+            <Tabs
+              size="sm"
+              value={view}
+              onChange={setView}
+              tabs={[
+                { value: "preview", label: "Preview", icon: <Eye className="size-3.5" /> },
+                { value: "result", label: "Result", icon: <ListChecks className="size-3.5" /> },
+              ]}
+            />
+          )}
+          <Button variant="ghost" size="sm" onClick={onToggleExpanded} aria-pressed={expanded}>
+            {expanded ? <Minimize2 className="size-4" aria-hidden /> : <Maximize2 className="size-4" aria-hidden />}
+            {expanded ? "Show inputs" : "Expand"}
+          </Button>
+        </>
       }
     >
       {view === "result" && run ? (

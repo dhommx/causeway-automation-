@@ -40,13 +40,13 @@ export default function RunResultView({ run }: { run: Run }) {
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="grid shrink-0 gap-3 border-b border-border p-5">
-        <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
           <StatusPill status={run.status} />
           <span>Took {duration(run)}</span>
           <span>Rules v{run.rule_version ?? "-"}</span>
         </div>
         {!!result.metrics?.length && (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-3">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-4">
             {result.metrics.map((m) => (
               <MetricTile key={m.label} label={m.label} value={m.value} tone={m.tone} />
             ))}

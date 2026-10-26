@@ -9,10 +9,12 @@ Writing:  XlsxWriter for new formatted workbooks (write_workbook),
 import io
 from collections.abc import Iterator
 from contextlib import contextmanager
+from copy import copy
 from pathlib import Path
 
 import msoffcrypto
 import openpyxl
+import openpyxl.utils
 import polars as pl
 import xlsxwriter
 
@@ -118,10 +120,26 @@ def edit_workbook(data: bytes, name: str) -> Iterator[openpyxl.Workbook]:
     wb.saved = out.getvalue()  # type: ignore[attr-defined]
 
 
-def add_sheet(wb: openpyxl.Workbook, title: str, df: pl.DataFrame) -> None:
-    """Append a DataFrame as a new sheet (header in row 1) to a workbook opened with edit_workbook."""
+def add_sheet(
+    wb: openpyxl.Workbook, title: str, df: pl.DataFrame, header_like: str | None = None
+) -> None:
+    """Append a DataFrame as a new sheet (header in row 1) to a workbook opened with edit_workbook.
+
+    header_like: an existing sheet whose header style (font, fill, border) the new header copies.
+    An all-empty row in df is written as an empty row.
+    """
     ws = wb.create_sheet(title=title[:31])
     ws.append(df.columns)
     for row in df.iter_rows():
         ws.append(list(row))
+    if header_like is not None:
+        source = wb[header_like][1]
+        for i, cell in enumerate(ws[1]):
+            if i < len(source):
+                cell.font = copy(source[i].font)
+                cell.fill = copy(source[i].fill)
+                cell.border = copy(source[i].border)
+    for i, name in enumerate(df.columns, start=1):
+        longest = max([len(str(name)), *(len(str(v)) for v in df[name] if v is not None)])
+        ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = min(longest + 2, 60)
     ws.freeze_panes = "A2"

@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import type { ButtonHTMLAttributes } from "react";
+import type { ButtonHTMLAttributes, Ref } from "react";
 
 type Variant = "primary" | "secondary" | "ghost";
 
@@ -10,7 +10,11 @@ const styles: Record<Variant, string> = {
   ghost: "text-primary font-medium hover:bg-primary/10",
 };
 
-type Props = ButtonHTMLAttributes<HTMLButtonElement> & { variant?: Variant; size?: "md" | "sm" };
+type Props = ButtonHTMLAttributes<HTMLButtonElement> & {
+  variant?: Variant;
+  size?: "md" | "sm";
+  ref?: Ref<HTMLButtonElement>;
+};
 
 export default function Button({ variant = "primary", size = "md", className, ...rest }: Props) {
   return (
