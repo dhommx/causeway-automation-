@@ -1,0 +1,12 @@
+# Python
+backend/.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+# Node
+frontend/node_modules/
+frontend/dist/
+# Local data and secrets
+backend/storage/
+.env
+backend/.env

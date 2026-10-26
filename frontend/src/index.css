@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+/*
+  Design tokens. Components use these names (bg-card, text-muted-foreground, border-border ...),
+  never raw colours. PIE brand colours are shared with the Compliance Portal.
+*/
+@theme {
+  --font-sans: "Poppins", ui-sans-serif, system-ui, sans-serif;
+
+  --color-background: #f3f6f9;
+  --color-foreground: #0f1f2e;
+  --color-card: #ffffff;
+  --color-card-foreground: #0f1f2e;
+  --color-muted: #eef2f6;
+  --color-muted-foreground: #5b6b7b;
+  --color-border: #dde4eb;
+  --color-ring: #3fc1c9;
+
+  --color-primary: #093c66;
+  --color-primary-hover: #072e50;
+  --color-on-primary: #ffffff;
+  --color-brand-dark: #01345a;
+  --color-accent: #3fc1c9;
+  --color-accent-soft: #e3f6f7;
+
+  --color-success: #11845b;
+  --color-success-soft: #e3f4ec;
+  --color-warning: #a15c07;
+  --color-warning-soft: #fdf1df;
+  --color-destructive: #c2362b;
+  --color-destructive-soft: #fbe9e7;
+  --color-on-destructive: #ffffff;
+
+  --radius: 0.625rem;
+  --radius-lg: 0.875rem;
+  --shadow-sm: 0 1px 2px rgb(15 31 46 / 0.06);
+  --shadow-md: 0 6px 18px rgb(15 31 46 / 0.09);
+}
+
+/* Pages never scroll; panels inside them do. See guide.md "Static pages". */
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-ring);
+  outline-offset: 2px;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.enter {
+  animation: fade-up 0.25s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+
+/* Thin scrollbars inside panels. */
+.scroll-area {
+  overflow: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

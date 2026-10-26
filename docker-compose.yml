@@ -1,0 +1,60 @@
+# PIE Automation Portal
+#   Everything:      docker compose up -d --build        -> http://localhost:3500
+#   Database only:   docker compose up -d db             (for local development, see guide.md)
+name: automation-portal
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER:-automation}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-automation}
+      POSTGRES_DB: ${DB_NAME:-automation_portal}
+    ports:
+      - "${DB_PORT:-5450}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-automation} -d ${DB_NAME:-automation_portal}"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  api:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 4500"
+    environment: &backend-env
+      AP_DATABASE_URL: postgresql+psycopg://${DB_USER:-automation}:${DB_PASSWORD:-automation}@db:5432/${DB_NAME:-automation_portal}
+      AP_STORAGE_ROOT: /data/storage
+      AP_SECRET_KEY: ${AP_SECRET_KEY:-ZGV2LW9ubHkta2V5LWNoYW5nZS1tZS1wbGVhc2UhISE=}
+      AP_CORS_ORIGINS: '["http://localhost:3500"]'
+    volumes:
+      - storage_data:/data/storage
+
+  worker:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_started
+    command: python -m procrastinate --app=app.jobs.app worker
+    environment: *backend-env
+    volumes:
+      - storage_data:/data/storage
+
+  web:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "${WEB_PORT:-3500}:80"
+
+volumes:
+  db_data:
+  storage_data:

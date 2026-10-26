@@ -1,0 +1,43 @@
+[project]
+name = "automation-portal-api"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.20.1",
+    "cryptography>=50.0.2",
+    "fastapi>=0.162.0",
+    "fastexcel>=0.21.0",
+    "fsspec>=2026.9.0",
+    "msoffcrypto-tool>=6.0.0",
+    "openpyxl>=3.1.5",
+    "polars>=2.1.0",
+    "procrastinate>=3.10.0",
+    "psycopg[binary]>=3.3.6",
+    "pydantic-settings>=2.16.1",
+    "python-multipart>=0.0.32",
+    "sqlalchemy>=2.1.6",
+    "uvicorn[standard]>=0.54.0",
+    "xlsxwriter>=3.3.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+    "ruff>=0.17.2",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+# E501: the formatter owns line length. B008: Depends() in defaults is the FastAPI way.
+ignore = ["E501", "B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"alembic/env.py" = ["E402"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
