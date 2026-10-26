@@ -29,11 +29,11 @@ Status key: **Done**, **Next**, **Planned**.
 12. Automated tests for the shared tools and the full upload → run → download → audit path, plus a check of the full Docker setup.
 13. Documentation: `guide.md`, `CLAUDE.md` and this plan.
 
-**Until Phase 2 starts,** running Causeway Sales Reconciliation copies the input to the output unchanged, with a warning saying no rules are set yet. This proves the whole path works without guessing at Finance's rules.
+**Until Phase 2 started,** running Causeway Sales Reconciliation copied the input to the output unchanged. It now does the reconciliation (Phase 2, step 4).
 
 ---
 
-## Phase 2: Causeway Sales Reconciliation logic (Next)
+## Phase 2: Causeway Sales Reconciliation logic (In progress)
 
 **Goal:** cut the daily Causeway posting from about 15 minutes to 5.
 
@@ -41,14 +41,14 @@ Status key: **Done**, **Next**, **Planned**.
 
 - Instructions from the user on the steps, given one at a time (the process notes in `neasi_organised.txt` are the starting point).
 - One complete day of real or dummy data: the Zoho export plus the matching Cash, AFS and PIE amounts and the ERP entries the accountant made for that day.
-- Answers to the open points in the notes: the AFS commission rate (2% or 2.2%), where the eSIM price comes from, VAT on the eSIM line, and whether cash is posted the next day.
+- Answers to the open points in the notes: the AFS commission rate (answered by the AFS report: 2% commission plus 10% VAT on it, 2.2% in all), where the eSIM price comes from, VAT on the eSIM line, and whether cash is posted the next day.
 
 **Steps**
 
-1. Declare the inputs: the Zoho invoice export as the file, and Cash, AFS and PIE amounts as manual entries.
+1. Declare the inputs: the Zoho invoice export as the file, and Cash, AFS and PIE amounts as manual entries. **Done:** the AFS amount is read from the password-protected AFS settlement report (its Total row) instead of being typed; Cash, PIE and the sales date are typed.
 2. Clean the Zoho file: keep the agreed columns, drop the rest, keep the original sheet and add the cleaned one, and separate the dates.
 3. Classify each line (normal product, EVD, Kunooz, KFC) with conditions stored as rules, so Finance can adjust them.
-4. Reconcile: sum of payments against the Zoho total, and the difference (the Batelco marketing fund).
+4. Reconcile: sum of payments against the Zoho total, and the difference (the Batelco marketing fund). **Done:** marketing fund = Zoho total - (Cash + AFS + PIE); the worked example for 18/10/2026 gives 43.993.
 5. Build every ERP entry the accountant types: Direct Sales Invoice, the EVD/KFC credit note, the cash receipt, the two bank receipts with their commissions, and the marketing fund credit note. Check that the sales side equals the Zoho total.
 6. Show all of this on screen in the order it is typed into PACT, and produce the Excel output in the agreed format.
 7. Store rates, account codes and product-code mappings as rules, starting from the confirmed values.

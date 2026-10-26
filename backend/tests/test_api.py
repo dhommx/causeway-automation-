@@ -1,6 +1,19 @@
+from tests.test_causeway_sales import AFS_PASSWORD, make_afs, make_zoho
 from tests.test_excel import make_xlsx
 
 KEY = "causeway-sales-reconciliation"
+PARAMS = {"sales_date": "2026-10-18", "cash": "100.500", "pie": "215.000"}
+
+
+def upload(client, name: str, data: bytes) -> str:
+    return client.post("/api/v1/files", files={"files": (name, data)}).json()[0]["id"]
+
+
+def causeway_inputs(client) -> dict:
+    return {
+        "afs": [{"id": upload(client, "afs.xlsx", make_afs()), "password": AFS_PASSWORD}],
+        "zoho": [{"id": upload(client, "zoho.xlsx", make_zoho())}],
+    }
 
 
 def test_health(client):
@@ -24,12 +37,14 @@ def test_upload_preview_run_download(client):
     assert preview["total_rows"] == 1
 
     run = client.post(
-        "/api/v1/runs", json={"workflow_key": KEY, "inputs": {"source": [{"id": file_id}]}}
+        "/api/v1/runs",
+        json={"workflow_key": KEY, "inputs": causeway_inputs(client), "params": PARAMS},
     )
     assert run.status_code == 202
     run = client.get(f"/api/v1/runs/{run.json()['id']}").json()
     assert run["status"] == "succeeded", run["error"]
     assert run["rule_version"] == 1
+    assert run["result"]["metrics"][2]["value"] == "43.993"
     outputs = [f for f in run["files"] if f["role"] == "output"]
     assert len(outputs) == 1
     download = client.get(f"/api/v1/files/{outputs[0]['file']['id']}/download")
@@ -43,7 +58,15 @@ def test_upload_preview_run_download(client):
 
 def test_run_needs_required_file(client):
     r = client.post("/api/v1/runs", json={"workflow_key": KEY, "inputs": {}})
-    assert r.status_code == 422 and "Source files" in r.json()["detail"]
+    assert r.status_code == 422 and "AFS settlement report" in r.json()["detail"]
+
+
+def test_wrong_afs_password_fails_the_run(client):
+    inputs = causeway_inputs(client)
+    inputs["afs"][0]["password"] = "1111"
+    body = {"workflow_key": KEY, "inputs": inputs, "params": PARAMS}
+    run = client.get(f"/api/v1/runs/{client.post('/api/v1/runs', json=body).json()['id']}").json()
+    assert run["status"] == "failed" and "password" in run["error"]
 
 
 def test_planned_workflow_cannot_run(client):
@@ -67,9 +90,6 @@ PNG = (
 
 
 def test_images_are_kept_for_reference_not_processed(client):
-    xlsx_id = client.post("/api/v1/files", files={"files": ("zoho.xlsx", make_xlsx())}).json()[0][
-        "id"
-    ]
     img = client.post("/api/v1/files", files={"files": ("afs amounts.png", PNG)}).json()[0]
     assert img["content_type"] == "image/png"
 
@@ -79,20 +99,19 @@ def test_images_are_kept_for_reference_not_processed(client):
 
     body = {
         "workflow_key": KEY,
-        "inputs": {"source": [{"id": xlsx_id}], "images": [{"id": img["id"]}]},
+        "inputs": {**causeway_inputs(client), "images": [{"id": img["id"]}]},
+        "params": PARAMS,
     }
     run = client.get(f"/api/v1/runs/{client.post('/api/v1/runs', json=body).json()['id']}").json()
     assert run["status"] == "succeeded", run["error"]
-    assert {f["slot"] for f in run["files"] if f["role"] == "input"} == {"source", "images"}
-    assert run["result"]["metrics"][0] == {"label": "Files", "value": "1", "tone": "neutral"}
+    assert {f["slot"] for f in run["files"] if f["role"] == "input"} == {"afs", "zoho", "images"}
 
 
 def test_wrong_format_for_slot_is_refused(client):
-    img_id = client.post("/api/v1/files", files={"files": ("shot.png", PNG)}).json()[0]["id"]
-    r = client.post(
-        "/api/v1/runs", json={"workflow_key": KEY, "inputs": {"source": [{"id": img_id}]}}
-    )
-    assert r.status_code == 422 and "can't be used as Source files" in r.json()["detail"]
+    inputs = causeway_inputs(client)
+    inputs["afs"] = [{"id": upload(client, "shot.png", PNG)}]
+    r = client.post("/api/v1/runs", json={"workflow_key": KEY, "inputs": inputs, "params": PARAMS})
+    assert r.status_code == 422 and "can't be used as AFS settlement report" in r.json()["detail"]
 
 
 def test_other_formats_refused_on_upload(client):
