@@ -25,7 +25,7 @@ Four automations come from the proposals in `../Proposals/`:
 
 | # | Automation | Today | Target | Status |
 |---|---|---|---|---|
-| 01 | Causeway Sales Reconciliation | 15 min / day | 5 min / day | Live (no processing rules yet) |
+| 01 | Causeway Sales Reconciliation | 15 min / day | 5 min / day | Live (step 1, reconciliation, done) |
 | 02 | Start Back Invoicing | 15 min / day | 3 min / day | Planned |
 | 03 | Cash Collection | 1 hour / day | 10 min / day | Planned |
 | 04 | Threshold Alert System | ~10 min / file | 2-3 min / file | Planned |
