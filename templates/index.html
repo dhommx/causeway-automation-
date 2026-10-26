@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Causeway Marketing Fund</title>
+<style>
+  :root {
+    --bg: #f4f6f9; --card: #ffffff; --ink: #1c2733; --muted: #5f6b7a; --line: #dde3ea;
+    --brand: #1f3a5f; --accent: #2b7a8c; --ok: #1e7a46; --ok-bg: #e7f5ec;
+    --warn: #8a5a00; --warn-bg: #fff4dc; --err: #a32020; --err-bg: #fde8e8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #11161c; --card: #19212a; --ink: #e6ebf0; --muted: #98a4b3; --line: #2b3542;
+      --brand: #8fb4e3; --accent: #6cc0d1; --ok: #6fd39a; --ok-bg: #16301f;
+      --warn: #f1c46b; --warn-bg: #33290f; --err: #ff8f8f; --err-bg: #3a1a1a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.5 "Segoe UI", system-ui, sans-serif; }
+  header { background: var(--brand); color: #fff; padding: 18px 16px; }
+  @media (prefers-color-scheme: dark) { header { background: #1f3a5f; } }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 2px 0 0; opacity: .85; font-size: 13px; }
+  main { max-width: 980px; margin: 0 auto; padding: 20px 16px 48px; display: grid; gap: 20px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 20px; }
+  h2 { margin: 0 0 14px; font-size: 16px; color: var(--accent); }
+  h3 { margin: 18px 0 8px; font-size: 14px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px 18px; }
+  label { display: block; font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+  .hint { color: var(--muted); font-weight: 400; font-size: 12px; }
+  input[type=text], input[type=date], input[type=password], input[type=file] {
+    width: 100%; padding: 9px 10px; border: 1px solid var(--line); border-radius: 6px;
+    background: var(--bg); color: var(--ink); font: inherit; }
+  button { margin-top: 18px; padding: 10px 22px; border: 0; border-radius: 6px; background: var(--accent);
+    color: #fff; font: 600 15px inherit; cursor: pointer; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  .msg { padding: 10px 14px; border-radius: 6px; margin: 0 0 10px; }
+  .err { background: var(--err-bg); color: var(--err); }
+  .warn { background: var(--warn-bg); color: var(--warn); }
+  .fund { background: var(--ok-bg); border-radius: 10px; padding: 18px 20px; display: flex; flex-wrap: wrap;
+    justify-content: space-between; align-items: baseline; gap: 8px; }
+  .fund .big { font-size: 30px; font-weight: 700; color: var(--ok); font-variant-numeric: tabular-nums; }
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .03em; }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tr.total td { font-weight: 700; border-top: 2px solid var(--ink); border-bottom: 0; }
+  ol.steps { margin: 0; padding-left: 20px; }
+  ol.steps li { margin-bottom: 8px; }
+  code { background: var(--bg); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  @media print { form, header p { display: none; } body { background: #fff; } .card { border: 0; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Causeway Daily Cash Sales: Marketing Fund</h1>
+  <p>Step 1: reconcile Cash + AFS + PIE against the Zoho total</p>
+</header>
+<main>
+
+<section class="card">
+  <h2>Inputs</h2>
+  {% for e in errors %}<p class="msg err">{{ e }}</p>{% endfor %}
+  <form method="post" enctype="multipart/form-data" id="f">
+    <div class="grid">
+      <div>
+        <label for="date">Sales date</label>
+        <input type="date" id="date" name="date" required value="{{ form.get('date', '') }}">
+      </div>
+      <div>
+        <label for="cash">Cash amount (BHD) <span class="hint">from the email report</span></label>
+        <input type="text" inputmode="decimal" id="cash" name="cash" required placeholder="100.500" value="{{ form.get('cash', '') }}">
+      </div>
+      <div>
+        <label for="pie">PIE / MSwipe amount (BHD) <span class="hint">from the email image</span></label>
+        <input type="text" inputmode="decimal" id="pie" name="pie" required placeholder="215.000" value="{{ form.get('pie', '') }}">
+      </div>
+    </div>
+    <div class="grid" style="margin-top:14px">
+      <div>
+        <label for="afs_file">AFS Excel file <span class="hint">settlement report</span></label>
+        <input type="file" id="afs_file" name="afs_file" accept=".xlsx,.xls" required>
+      </div>
+      <div>
+        <label for="afs_password">AFS Excel password</label>
+        <input type="password" id="afs_password" name="afs_password" required autocomplete="off">
+      </div>
+      <div>
+        <label for="zoho_file">Zoho invoice Excel <span class="hint">total is read for the date above</span></label>
+        <input type="file" id="zoho_file" name="zoho_file" accept=".xlsx" required>
+      </div>
+    </div>
+    <button type="submit" id="go" disabled>Calculate marketing fund</button>
+  </form>
+</section>
+
+{% if result %}
+{% set r = result %}
+<section class="card">
+  <h2>Result for {{ r.date.strftime('%d/%m/%Y') }}</h2>
+  {% for w in r.warnings %}<p class="msg warn">{{ w }}</p>{% endfor %}
+
+  <div class="fund">
+    <div>
+      <div style="font-weight:600">Batelco marketing fund</div>
+      <div class="hint">Zoho total − (Cash + AFS + PIE)</div>
+    </div>
+    <div class="big">{{ r.fund | money }} BHD</div>
+  </div>
+
+  <h3>Reconciliation</h3>
+  <div class="table-wrap"><table>
+    <tr><th>Value</th><th>Source</th><th class="n">BHD</th></tr>
+    <tr><td>Cash</td><td>Entered</td><td class="n">{{ r.cash | money }}</td></tr>
+    <tr><td>AFS (card machine)</td><td>AFS Excel, Total row, Tran Amt</td><td class="n">{{ r.afs.tran_amt | money }}</td></tr>
+    <tr><td>PIE (MSwipe)</td><td>Entered</td><td class="n">{{ r.pie | money }}</td></tr>
+    <tr class="total"><td>Sum of payments</td><td>Cash + AFS + PIE</td><td class="n">{{ r.payments | money }}</td></tr>
+    <tr><td>Zoho total</td><td>Zoho Excel, invoices dated {{ r.date.strftime('%d/%m/%Y') }}</td><td class="n">{{ r.zoho.total | money }}</td></tr>
+    <tr class="total"><td>Marketing fund</td><td>Zoho total − Sum of payments</td><td class="n">{{ r.fund | money }}</td></tr>
+  </table></div>
+
+  <h3>How it was worked out</h3>
+  <ol class="steps">
+    <li>Opened <code>{{ r.afs_file }}</code> with the password and read the <b>Total</b> row:
+      {{ r.afs.transactions }} transaction{{ '' if r.afs.transactions == 1 else 's' }} totalling
+      <b>{{ r.afs.tran_amt | money }}</b> BHD.</li>
+    <li>Opened <code>{{ r.zoho_file }}</code>, kept only the rows dated {{ r.date.strftime('%d/%m/%Y') }}
+      ({{ r.zoho.lines }} item line{{ '' if r.zoho.lines == 1 else 's' }}) and took each invoice's Total once:
+      <b>{{ r.zoho.total | money }}</b> BHD.</li>
+    <li>Added the payments: {{ r.cash | money }} + {{ r.afs.tran_amt | money }} + {{ r.pie | money }}
+      = <b>{{ r.payments | money }}</b>.</li>
+    <li>Subtracted from the Zoho total: {{ r.zoho.total | money }} − {{ r.payments | money }}
+      = <b>{{ r.fund | money }}</b>. This is posted in step 6 as the Batelco marketing fund credit note.</li>
+  </ol>
+
+  <h3>AFS file details</h3>
+  <div class="table-wrap"><table>
+    <tr><th>Terminal</th><th class="n">Tran Amt</th><th class="n">Commission</th><th class="n">VAT</th><th class="n">Net</th></tr>
+    {% for t in r.afs.terminals %}
+    <tr><td>{{ t.terminal }}</td><td class="n">{{ t.tran_amt | money }}</td><td class="n">{{ t.commission | money }}</td><td class="n">{{ t.vat | money }}</td><td class="n">{{ t.net | money }}</td></tr>
+    {% endfor %}
+    {% if r.afs.terminals | length > 1 %}
+    <tr class="total"><td>Total</td><td class="n">{{ r.afs.tran_amt | money }}</td><td class="n">{{ r.afs.commission | money }}</td><td class="n">{{ r.afs.vat | money }}</td><td class="n">{{ r.afs.net | money }}</td></tr>
+    {% endif %}
+  </table></div>
+  <p class="hint">Commission 2% plus 10% VAT on the commission makes 2.2% overall. The Net figure is what step 5b posts to the bank.</p>
+
+  <h3>Zoho invoices for the date</h3>
+  <div class="table-wrap"><table>
+    <tr><th>Invoice</th><th>Status</th><th class="n">Total</th></tr>
+    {% for inv in r.zoho.invoices %}
+    <tr><td>{{ inv.number }}</td><td>{{ inv.status }}</td><td class="n">{{ inv.total | money }}</td></tr>
+    {% endfor %}
+  </table></div>
+</section>
+{% endif %}
+
+</main>
+<script>
+  // Submit stays disabled until both files and the AFS password are in.
+  const f = document.getElementById('f'), go = document.getElementById('go');
+  const check = () => { go.disabled = !f.checkValidity(); };
+  f.addEventListener('input', check); f.addEventListener('change', check); check();
+</script>
+</body>
+</html>
