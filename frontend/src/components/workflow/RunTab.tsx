@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import type { StoredFile, Workflow } from "../../lib/api";
+import { sameValue } from "../../lib/files";
 import { useCreateRun } from "../../lib/runs";
 import ConfirmDialog from "../ui/ConfirmDialog";
 import InputsPanel from "./InputsPanel";
@@ -16,6 +17,7 @@ export type SlotFile = { slot: string; file: StoredFile; password: string };
 type Draft = {
   files: { slot: string; file: StoredFile }[];
   params: Record<string, string>;
+  autoFilled?: Record<string, string>;
   selected: string | null;
   runId: string | null;
 };
@@ -68,6 +70,8 @@ function clearDraft(workflowKey: string) {
 export default function RunTab({ wf }: { wf: Workflow }) {
   const [files, setFiles] = useState<SlotFile[]>([]);
   const [params, setParams] = useState<Record<string, string>>({});
+  // Values a file check wrote into manual fields (e.g. the AFS amount for the next day).
+  const [autoFilled, setAutoFilled] = useState<Record<string, string>>({});
   const [selected, setSelected] = useState<string | null>(null);
   const [runId, setRunId] = useState<string | null>(null);
   // "Expand" gives the preview/result the full width by hiding the inputs (they stay mounted).
@@ -82,13 +86,14 @@ export default function RunTab({ wf }: { wf: Workflow }) {
   // would overwrite the saved work before they answer.
   useEffect(() => {
     if (pending) return;
-    writeDraft(wf.key, { files: files.map(({ slot, file }) => ({ slot, file })), params, selected, runId });
-  }, [wf.key, pending, files, params, selected, runId]);
+    writeDraft(wf.key, { files: files.map(({ slot, file }) => ({ slot, file })), params, autoFilled, selected, runId });
+  }, [wf.key, pending, files, params, autoFilled, selected, runId]);
 
   const keep = () => {
     if (!pending) return;
     setFiles(pending.files.map((f) => ({ ...f, password: "" })));
     setParams(pending.params);
+    setAutoFilled(pending.autoFilled ?? {});
     setSelected(pending.selected);
     setRunId(pending.runId);
     setPending(null);
@@ -109,6 +114,11 @@ export default function RunTab({ wf }: { wf: Workflow }) {
     );
   };
 
+  // Filled values the user changed: shown again in the run check, as their responsibility.
+  const changedFills = wf.manual_fields.filter(
+    (m) => autoFilled[m.key] !== undefined && !sameValue(params[m.key], autoFilled[m.key]),
+  );
+
   const selectedFile = files.find((f) => f.file.id === selected) ?? null;
   const needsPassword = pending?.files.some((f) => wf.file_slots.find((s) => s.key === f.slot)?.password_protected);
 
@@ -121,6 +131,8 @@ export default function RunTab({ wf }: { wf: Workflow }) {
           setFiles={setFiles}
           params={params}
           setParams={setParams}
+          autoFilled={autoFilled}
+          setAutoFilled={setAutoFilled}
           selected={selected}
           onSelect={setSelected}
           onRun={() => (wf.manual_fields.length ? setConfirming(true) : start())}
@@ -154,6 +166,12 @@ export default function RunTab({ wf }: { wf: Workflow }) {
             </div>
           ))}
         </dl>
+        {changedFills.map((m) => (
+          <p key={m.key} className="mt-3 rounded-[var(--radius)] bg-warning-soft px-3 py-2 text-xs text-warning">
+            {m.label} was changed from the {autoFilled[m.key]} BHD the system found. The system detected a mismatch;
+            running with this value is on your responsibility.
+          </p>
+        ))}
       </ConfirmDialog>
       <ConfirmDialog
         open={pending !== null}

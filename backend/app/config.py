@@ -16,7 +16,13 @@ class Settings(BaseSettings):
     database_url: str = (
         "postgresql+psycopg://automation:automation@localhost:5450/automation_portal"
     )
-    storage_root: str = str(BACKEND_DIR / "storage")
+    # Default data folder (Data/ next to backend/). Admins can change it from the portal's Settings
+    # screen; that choice is kept in the database and wins over this value.
+    data_root: str = str(BACKEND_DIR.parent / "Data")
+    # Uploads not used in a run are deleted after this many days.
+    upload_keep_days: int = 7
+    # Names the date and time folders under the data folder.
+    timezone: str = "Asia/Bahrain"
     # Key for encrypting connector credentials (Fernet, urlsafe base64, 32 bytes).
     secret_key: str = "ZGV2LW9ubHkta2V5LWNoYW5nZS1tZS1wbGVhc2UhISE="
     cors_origins: list[str] = ["http://localhost:3500"]

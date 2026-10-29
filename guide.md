@@ -51,7 +51,7 @@ Today the user uploads the files and downloads the result. Each proposal has a "
 | Rules / conditions | Our own **condition engine** (JSON → Polars expressions) | Users change rates, codes and filters without a code change. Every change is a new version. |
 | Database | **PostgreSQL 16**, SQLAlchemy 2, Alembic | Runs, files, rule versions, audit log, connections and the job queue all in one place. |
 | Background jobs | **Procrastinate** (queue stored in Postgres) | Large files don't block the UI. Gives retries and scheduled runs without running Redis. |
-| File storage | Local folder through **fsspec**, files named by SHA-256 | Files are never overwritten. Moving to MinIO/S3 later is a setting. |
+| File storage | A readable **Data folder**: one folder per day, one per run, with `input/`, `output/` and `run.json` | Auditors can open it without the portal. Files are never overwritten; the database keeps each file's path and SHA-256. |
 | Frontend | **React 19 + TypeScript + Vite** | Internal single-page app; no server rendering needed. |
 | UI | **Tailwind CSS v4**, lucide icons, Poppins | Design tokens in one file (`frontend/src/index.css`). PIE brand colours. |
 | Data grid | **AG Grid Community** | Virtual scrolling, so 100k-row previews stay smooth; sorting and filters built in. |
@@ -68,16 +68,16 @@ Browser (React)  ──/api/v1──►  API (FastAPI)  ──►  PostgreSQL
                                    │   ▲               ▲  (runs, files, rules, audit, job queue)
                                    │   │               │
                                    ▼   │               │
-                              Storage folder      Worker (Procrastinate)
-                              (files by SHA-256)   runs the workflow, saves outputs
+                              Data folder         Worker (Procrastinate)
+                              (day / run folders)  runs the workflow, saves outputs
 ```
 
 A run goes like this:
 
-1. The user uploads files → `POST /api/v1/files` saves them to storage and records them.
+1. The user uploads files → `POST /api/v1/files` saves them in `Data/_uploads/<date>/` and records them.
 2. The preview grid reads the first 1,000 rows of a sheet → `GET /api/v1/files/{id}/preview`.
-3. The user presses **Run automation** → `POST /api/v1/runs`. The API checks the inputs against what the workflow declares, links the current rule version, saves a `queued` run and puts a job on the queue.
-4. The worker picks up the job and calls the workflow's `run()`. Outputs are saved to storage and linked to the run; the result (metrics, tables, warnings, log) is saved on the run.
+3. The user presses **Run automation** → `POST /api/v1/runs`. The API checks the inputs against what the workflow declares, links the current rule version, creates the run's folder (`Data/<date>/<automation> - <time>/`), copies the input files into its `input/` with the typed values as `entries.json`, saves a `queued` run and puts a job on the queue.
+4. The worker picks up the job and calls the workflow's `run()`. Outputs are saved in the run's `output/` and linked to the run; the result (metrics, tables, warnings, log) is saved on the run, and `run.json` is written.
 5. The page polls the run every second and shows the result and download buttons.
 6. Every step writes an audit event.
 
@@ -92,6 +92,7 @@ causeway-automation-/
 ├── CLAUDE.md                rules for AI assistants
 ├── docker-compose.yml       db, api, worker, web
 ├── .env.example             settings for docker compose
+├── Data/                    runs saved for audit (not in git; see §6 Data folder)
 ├── backend/
 │   ├── app/
 │   │   ├── main.py          FastAPI app, routers, startup
@@ -100,7 +101,7 @@ causeway-automation-/
 │   │   ├── jobs.py          job queue + worker task (scheduled jobs go here later)
 │   │   ├── api/             routes (HTTP layer only), schemas, deps
 │   │   ├── services/        what the routes call: files, runs, rules
-│   │   ├── core/            shared tools: excel, money, conditions, storage, audit, secrets
+│   │   ├── core/            shared tools: excel, money, conditions, storage (data folder), audit, secrets
 │   │   ├── connectors/      Source / Destination interface + built-ins (upload, download)
 │   │   └── workflows/
 │   │       ├── base.py      what a workflow is (slots, fields, rules, run)
@@ -158,13 +159,16 @@ The backend reads environment variables prefixed with `AP_`, from the shell or f
 | Variable | Default (development only) | What it is |
 |---|---|---|
 | `AP_DATABASE_URL` | `postgresql+psycopg://automation:automation@localhost:5450/automation_portal` | the database |
-| `AP_STORAGE_ROOT` | `backend/storage` | where uploaded and output files are kept |
+| `AP_DATA_ROOT` | `Data/` in the portal's folder | the default data folder (see §6 Data folder); the Settings screen can change it |
+| `AP_UPLOAD_KEEP_DAYS` | `7` | uploads never used in a run are deleted after this many days |
+| `AP_TIMEZONE` | `Asia/Bahrain` | names the date and time folders |
 | `AP_SECRET_KEY` | a fixed development key | encrypts stored passwords and connector credentials |
 | `AP_CORS_ORIGINS` | `["http://localhost:3500"]` | which web addresses may call the API |
 | `AP_RUN_INLINE` | `false` | `true` runs jobs inside the API, so no worker is needed |
 | `AP_PREVIEW_ROW_LIMIT` | `1000` | rows shown in a file preview |
 | `AP_MAX_UPLOAD_MB` | `200` | the largest file that can be uploaded |
 | `DB_USER`, `DB_PASSWORD`, `DB_NAME`, `DB_PORT`, `WEB_PORT` | `automation`, `automation`, `automation_portal`, `5450`, `3500` | Docker Compose only |
+| `DATA_FOLDER` | `./Data` | Docker Compose only: the server folder mounted as the data folder |
 
 **The default database password and secret key are public, because this repository is public.** They are fine on a laptop. On a server, set a real `DB_PASSWORD` and generate a new key:
 
@@ -212,7 +216,9 @@ docker compose up -d --build
 # open http://<server>:3500
 ```
 
-The API container runs the migrations on start. Uploaded and output files live in the `storage_data` volume and the database in `db_data`. **Back up both.**
+The API container runs the migrations on start. The data folder is `DATA_FOLDER` on the server (default `./Data` next to `docker-compose.yml`), mounted inside the containers as `/portal/Data`; the database is in the `db_data` volume. **Back up both.**
+
+In Docker, change the data folder by setting `DATA_FOLDER` in `.env` and restarting (`docker compose up -d`), not from the Settings screen: the containers can only write to folders mounted into them.
 
 ### Checks
 
@@ -253,10 +259,34 @@ Backend tests create and use their own database (`automation_portal_test`), neve
 - Values that may change (rates, account codes, SKU mappings, column lists, filters) belong in the workflow's **rules**, not in code. `default_rules` gives version 1; users change them in the **Rules** tab, and every save is a new version.
 - Conditions use the condition engine (`app/core/conditions.py`): `{"field", "op", "value"}` or groups `{"all": [...]}`, `{"any": [...]}`, `{"not": ...}`. `apply_filter` filters rows; `classify` labels rows, and the first matching case wins.
 
+### Data folder
+
+Every run is saved in a readable folder tree, so an auditor can check it without the portal:
+
+```
+Data/
+├── 2026-10-27/
+│   └── Causeway Sales Reconciliation - 09-41-12/
+│       ├── input/      the files and images as uploaded, and entries.json (the values typed in)
+│       ├── output/     the files the run produced
+│       └── run.json    who, when, automation version, rules and their version, status,
+│                       file fingerprints (SHA-256), metrics, warnings, log, error
+└── _uploads/2026-10-27/   uploads waiting for a run
+```
+
+- The default is `Data/` in the portal's own folder. An admin can change it on the **Settings** screen (gear icon, top right). The portal checks it can write there before saving, and the change is audited.
+- A new folder applies to new uploads and runs only. Older runs stay where they were saved, and the database remembers each file's full path, so History still opens them.
+- The date folders use the run's date and time (Bahrain time, `AP_TIMEZONE`). Two runs in the same second get `(2)`; a file name used twice gets `zoho (2).xlsx`.
+- Files are written once and never changed. `run.json` and `entries.json` are the only files the portal writes over, while a run is in progress.
+- File passwords are never written to disk.
+- Uploads not used in a run are deleted from `_uploads/` after `AP_UPLOAD_KEEP_DAYS` days (a nightly job in the worker, recorded in the audit log). Run folders are never deleted by the portal.
+- `Data/` holds real Finance files and is in `.gitignore`. Never commit it.
+- Runs from before 27 Oct 2026 have no run folder; their files stay in `backend/storage/`.
+
 ### Audit
 
 - Anything that changes data writes an audit event (`app/core/audit.record`) in the same transaction.
-- Audit rows are never updated or deleted. Stored files are never overwritten. Rule sets are never edited in place.
+- Audit rows are never updated or deleted. Stored files are never overwritten (see Data folder above). Rule sets are never edited in place.
 - Until login exists, the actor is `anonymous`. `api/deps.current_actor` is the single place that will change.
 
 ### API

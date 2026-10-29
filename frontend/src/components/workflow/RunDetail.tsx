@@ -70,6 +70,15 @@ function AuditRecord({ run }: { run: Run }) {
         ))}
       </dl>
 
+      {run.folder && (
+        <section className="grid gap-1">
+          <h3 className="text-sm font-semibold">Saved in</h3>
+          <p className="break-all rounded-[var(--radius)] bg-muted px-3 py-2 font-mono text-xs" title={run.folder}>
+            {run.folder}
+          </p>
+        </section>
+      )}
+
       <section className="grid gap-2">
         <h3 className="text-sm font-semibold">Files</h3>
         <ul className="grid gap-1.5">
@@ -83,7 +92,7 @@ function AuditRecord({ run }: { run: Run }) {
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium">{f.file.original_name}</span>
                 <span className="block truncate text-xs text-muted-foreground">
-                  {f.role === "input" ? `Input · ${f.slot}` : "Output"} · {formatBytes(f.file.size_bytes)} · SHA-256{" "}
+                  {f.role === "input" ? `Input · ${f.slot}` : f.role === "replaced" ? "Output (replaced by a later split)" : "Output"} · {formatBytes(f.file.size_bytes)} · SHA-256{" "}
                   {f.file.sha256.slice(0, 12)}
                 </span>
               </span>

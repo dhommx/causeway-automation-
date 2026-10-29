@@ -32,7 +32,7 @@ def upload_files(
         if len(data) > limit:
             raise HTTPException(413, f"{name} is larger than {get_settings().max_upload_mb} MB.")
         content_type = upload.content_type or mimetypes.guess_type(name)[0] or ""
-        saved.append(file_service.save(db, name, data, content_type, "upload", actor))
+        saved.append(file_service.save_upload(db, name, data, content_type, actor))
     db.commit()
     return saved
 
@@ -59,6 +59,8 @@ def preview_file(
         return file_service.preview(row, sheet, password, get_settings().preview_row_limit)
     except SpreadsheetError as exc:
         raise HTTPException(422, str(exc)) from exc
+    except file_service.FileGoneError as exc:
+        raise HTTPException(410, str(exc)) from exc
 
 
 @router.get("/{file_id}/download")
@@ -67,8 +69,12 @@ def download_file(file_id: uuid.UUID, inline: bool = False, db: Session = Depend
     row = file_service.get(db, file_id)
     if row is None:
         raise HTTPException(404, "File not found")
+    try:
+        data = file_service.read(row)
+    except file_service.FileGoneError as exc:
+        raise HTTPException(410, str(exc)) from exc
     return Response(
-        file_service.read(row),
+        data,
         media_type=row.content_type,
         headers={
             "Content-Disposition": f'{"inline" if inline else "attachment"}; filename="{row.original_name}"'

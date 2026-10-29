@@ -27,12 +27,13 @@ def now() -> datetime:
 
 
 class StoredFile(Base):
-    """A file kept in storage. The bytes live on disk under their SHA-256; this row is the record."""
+    """A file kept in the data folder (see app/core/storage.py); this row is the record."""
 
     __tablename__ = "stored_files"
 
     id: Mapped[uuid.UUID] = mapped_column(primary_key=True, default=uuid.uuid4)
     sha256: Mapped[str] = mapped_column(String(64), index=True)
+    path: Mapped[str] = mapped_column(String(1000))  # full path on disk
     original_name: Mapped[str] = mapped_column(String(500))
     content_type: Mapped[str] = mapped_column(String(200))
     size_bytes: Mapped[int] = mapped_column(BigInteger)
@@ -74,6 +75,7 @@ class Run(Base):
     result: Mapped[dict | None] = mapped_column(Json)
     error: Mapped[str | None] = mapped_column(Text)
     trigger: Mapped[str] = mapped_column(String(50), default="manual")  # manual | schedule | api
+    folder: Mapped[str | None] = mapped_column(String(1000))  # the run's folder in the data folder
     actor: Mapped[str] = mapped_column(String(200))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, index=True)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -113,6 +115,17 @@ class Connection(Base):
     secret_encrypted: Mapped[bytes | None] = mapped_column(LargeBinary)
     enabled: Mapped[bool] = mapped_column(default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
+
+
+class AppSetting(Base):
+    """A portal-wide setting changed from the Settings screen. Changes are recorded in the audit log."""
+
+    __tablename__ = "app_settings"
+
+    key: Mapped[str] = mapped_column(String(100), primary_key=True)
+    value: Mapped[dict] = mapped_column(Json)
+    actor: Mapped[str] = mapped_column(String(200))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now, onupdate=now)
 
 

@@ -109,6 +109,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workflows/{key}/check-file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check File
+         * @description Run the workflow's check on one uploaded file before Run (e.g. the AFS totals add up).
+         *     A file that can't be read or checked comes back as ok=false with the reason.
+         */
+        post: operations["check_file_api_v1_workflows__key__check_file_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/files": {
         parameters: {
             query?: never;
@@ -215,6 +236,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/runs/{run_id}/split": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Split Run
+         * @description Confirm how a run's amount is split (e.g. the variance between two accounts).
+         */
+        post: operations["split_run_api_v1_runs__run_id__split_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workflows/{key}/rules": {
         parameters: {
             query?: never;
@@ -226,6 +267,24 @@ export interface paths {
         get: operations["read_rules_api_v1_workflows__key__rules_get"];
         /** Save Rules */
         put: operations["save_rules_api_v1_workflows__key__rules_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read Settings */
+        get: operations["read_settings_api_v1_settings_get"];
+        /** Save Settings */
+        put: operations["save_settings_api_v1_settings_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -275,6 +334,34 @@ export interface components {
             /** Workflows */
             workflows: components["schemas"]["WorkflowOut"][];
         };
+        /** FileCheckIn */
+        FileCheckIn: {
+            /** Slot */
+            slot: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Password */
+            password?: string | null;
+            /** Params */
+            params?: {
+                [key: string]: unknown;
+            };
+        };
+        /** FileCheckOut */
+        FileCheckOut: {
+            /** Ok */
+            ok: boolean;
+            /** Message */
+            message: string;
+            /** Fills */
+            fills?: {
+                [key: string]: string;
+            };
+            notice?: components["schemas"]["NoticeOut"] | null;
+        };
         /** FileSlotOut */
         FileSlotOut: {
             /** Key */
@@ -296,6 +383,10 @@ export interface components {
              * @enum {string}
              */
             kind: "data" | "reference";
+            /** Checked */
+            checked: boolean;
+            /** Check Params */
+            check_params: string[];
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -325,6 +416,17 @@ export interface components {
             required: boolean;
             /** Options */
             options: string[];
+        };
+        /** NoticeOut */
+        NoticeOut: {
+            /** Title */
+            title: string;
+            /** Message */
+            message: string;
+            /** Columns */
+            columns?: string[];
+            /** Rows */
+            rows?: unknown[][];
         };
         /** PreviewOut */
         PreviewOut: {
@@ -458,8 +560,31 @@ export interface components {
             started_at: string | null;
             /** Finished At */
             finished_at: string | null;
+            /** Folder */
+            folder: string | null;
             /** Files */
             files: components["schemas"]["RunFileOut"][];
+        };
+        /** RunSplit */
+        RunSplit: {
+            /** Amounts */
+            amounts: {
+                [key: string]: string;
+            };
+        };
+        /** SettingsOut */
+        SettingsOut: {
+            /** Data Folder */
+            data_folder: string;
+            /** Default Data Folder */
+            default_data_folder: string;
+            /** Upload Keep Days */
+            upload_keep_days: number;
+        };
+        /** SettingsSave */
+        SettingsSave: {
+            /** Data Folder */
+            data_folder?: string | null;
         };
         /** StoredFileOut */
         StoredFileOut: {
@@ -671,6 +796,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WorkflowOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_file_api_v1_workflows__key__check_file_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FileCheckIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FileCheckOut"];
                 };
             };
             /** @description Validation Error */
@@ -911,6 +1071,41 @@ export interface operations {
             };
         };
     };
+    split_run_api_v1_runs__run_id__split_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RunSplit"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     read_rules_api_v1_workflows__key__rules_get: {
         parameters: {
             query?: never;
@@ -964,6 +1159,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RulesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_settings_api_v1_settings_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsOut"];
+                };
+            };
+        };
+    };
+    save_settings_api_v1_settings_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SettingsSave"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SettingsOut"];
                 };
             };
             /** @description Validation Error */

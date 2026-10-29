@@ -61,7 +61,7 @@ export default function OutputPanel({ selectedFile, runId, expanded, onToggleExp
       }
     >
       {view === "result" && run ? (
-        <RunResultView run={run} />
+        <RunResultView key={run.id} run={run} autoSplit />
       ) : selectedFile && isImage(selectedFile.file.original_name) ? (
         <ImageViewer key={selectedFile.file.id} file={selectedFile.file} />
       ) : (

@@ -1,8 +1,17 @@
+import io
+
+import openpyxl
+
 from tests.test_causeway_sales import AFS_PASSWORD, make_afs, make_zoho
 from tests.test_excel import make_xlsx
 
 KEY = "causeway-sales-reconciliation"
-PARAMS = {"sales_date": "2026-10-18", "cash": "100.500", "pie": "215.000"}
+PARAMS = {
+    "sales_date": "2026-10-18",
+    "cash": "100.500",
+    "cash_deposit_date": "2026-10-18",
+    "pie": "215.000",
+}
 
 
 def upload(client, name: str, data: bytes) -> str:
@@ -46,8 +55,8 @@ def test_upload_preview_run_download(client):
     assert run["rule_version"] == 1
     assert run["result"]["metrics"][2]["value"] == "43.993"
     outputs = [f for f in run["files"] if f["role"] == "output"]
-    # The reconciliation workbook, then the Zoho file with its formatted sheet.
-    assert len(outputs) == 2
+    # RECEIPTS and CreditNoteJV upload files, the reconciliation workbook, the Zoho file.
+    assert len(outputs) == 4
     for out in outputs:
         download = client.get(f"/api/v1/files/{out['file']['id']}/download")
         assert download.status_code == 200 and download.content[:2] == b"PK"
@@ -56,6 +65,42 @@ def test_upload_preview_run_download(client):
         e["action"] for e in client.get("/api/v1/audit", params={"entity_id": run["id"]}).json()
     ]
     assert actions == ["run.succeeded", "run.created"]
+
+
+def test_split_variance_rebuilds_the_credit_note_and_workbook(client):
+    run = client.post(
+        "/api/v1/runs",
+        json={"workflow_key": KEY, "inputs": causeway_inputs(client), "params": PARAMS},
+    ).json()
+    url = f"/api/v1/runs/{run['id']}/split"
+
+    wrong = client.post(url, json={"amounts": {"marketing_fund": "40", "business_promotion": "3"}})
+    assert wrong.status_code == 422 and "43.993" in wrong.json()["detail"]
+
+    ok = client.post(
+        url, json={"amounts": {"marketing_fund": "40.000", "business_promotion": "3.993"}}
+    )
+    assert ok.status_code == 200, ok.text
+    body = ok.json()
+    assert body["result"]["split"]["confirmed"] is True
+    note = next(t for t in body["result"]["tables"] if t["title"] == "Credit Note (Variance)")
+    assert [r[3] for r in note["rows"]] == ["0.000", "40.000", "3.993", "43.993"]
+    roles = sorted(f["role"] for f in body["files"])
+    assert roles.count("output") == 4 and roles.count("replaced") == 2
+
+    workbook = next(
+        f
+        for f in body["files"]
+        if f["role"] == "output" and f["file"]["original_name"].startswith("causeway_")
+    )
+    data = client.get(f"/api/v1/files/{workbook['file']['id']}/download").content
+    sheet = openpyxl.load_workbook(io.BytesIO(data))["Credit Note (Variance)"]
+    assert [c.value for c in sheet["D"]][1:4] == ["0.000", "40.000", "3.993"]
+
+    actions = [
+        e["action"] for e in client.get("/api/v1/audit", params={"entity_id": run["id"]}).json()
+    ]
+    assert actions[0] == "run.split"
 
 
 def test_run_needs_required_file(client):
@@ -69,6 +114,42 @@ def test_wrong_afs_password_fails_the_run(client):
     body = {"workflow_key": KEY, "inputs": inputs, "params": PARAMS}
     run = client.get(f"/api/v1/runs/{client.post('/api/v1/runs', json=body).json()['id']}").json()
     assert run["status"] == "failed" and "password" in run["error"]
+
+
+def test_check_afs_file_before_run(client):
+    url = f"/api/v1/workflows/{KEY}/check-file"
+    good = upload(client, "afs.xlsx", make_afs())
+    body = client.post(url, json={"slot": "afs", "id": good, "password": AFS_PASSWORD}).json()
+    assert body == {
+        "ok": True,
+        "message": "Total matches: 10 transactions = 91.000 BHD",
+        "fills": {},
+        "notice": None,
+    }
+
+    later = upload(client, "afs.xlsx", make_afs(later=("19-OCT-2026",)))
+    body = client.post(
+        url,
+        json={
+            "slot": "afs",
+            "id": later,
+            "password": AFS_PASSWORD,
+            "params": {"sales_date": "2026-10-18", "cash": "1"},
+        },
+    ).json()
+    assert body["fills"] == {"afs_next_day": "11.000"}
+    assert body["notice"]["columns"] == ["Date", "Batch", "Terminal", "Tran Amt"]
+    assert body["notice"]["rows"] == [["19/10/2026", "999", "03221330", "11.000"]]
+
+    bad = upload(client, "afs.xlsx", make_afs(total=92))
+    body = client.post(url, json={"slot": "afs", "id": bad, "password": AFS_PASSWORD}).json()
+    assert body["ok"] is False and "Total row says 92.000" in body["message"]
+
+    body = client.post(url, json={"slot": "afs", "id": good, "password": "1111"}).json()
+    assert body["ok"] is False and "password" in body["message"]
+
+    zoho = upload(client, "zoho.xlsx", make_zoho())
+    assert client.post(url, json={"slot": "zoho", "id": zoho}).status_code == 404
 
 
 def test_planned_workflow_cannot_run(client):

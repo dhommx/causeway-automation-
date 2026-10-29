@@ -4,7 +4,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.api.deps import current_actor, workflow_or_404
-from app.api.schemas import RunCreate, RunOut
+from app.api.schemas import RunCreate, RunOut, RunSplit
 from app.config import get_settings
 from app.db import get_db
 from app.models import Run
@@ -28,6 +28,7 @@ def to_out(run: Run) -> RunOut:
         created_at=run.created_at,
         started_at=run.started_at,
         finished_at=run.finished_at,
+        folder=run.folder,
         files=run.files,
     )
 
@@ -42,15 +43,11 @@ def create_run(
     wf = workflow_or_404(body.workflow_key)
     inputs = {slot: [f.model_dump() for f in items] for slot, items in body.inputs.items()}
     try:
-        run = run_service.create(db, wf, inputs, body.params, actor)
+        run, sealed = run_service.create(db, wf, inputs, body.params, actor)
     except run_service.RunRequestError as exc:
         raise HTTPException(422, str(exc)) from exc
     db.commit()
 
-    passwords = {
-        str(f.id): f.password for items in body.inputs.values() for f in items if f.password
-    }
-    sealed = run_service.seal_passwords(passwords)
     if get_settings().run_inline:
         background.add_task(run_service.execute, run.id, sealed)
     else:
@@ -71,3 +68,23 @@ def read_run(run_id: uuid.UUID, db: Session = Depends(get_db)):
     if run is None:
         raise HTTPException(404, "Run not found")
     return to_out(run)
+
+
+@router.post("/{run_id}/split", response_model=RunOut)
+def split_run(
+    run_id: uuid.UUID,
+    body: RunSplit,
+    db: Session = Depends(get_db),
+    actor: str = Depends(current_actor),
+):
+    """Confirm how a run's amount is split (e.g. the variance between two accounts)."""
+    try:
+        run_service.split(db, run_id, body.amounts, actor)
+    except run_service.RunRequestError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    db.commit()
+    try:
+        run_service.write_summary(db, run_id)
+    except OSError:
+        pass  # run.json is a convenience copy; the database has the split
+    return to_out(run_service.get(db, run_id))

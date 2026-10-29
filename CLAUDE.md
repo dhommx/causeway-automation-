@@ -18,6 +18,7 @@ An internal portal holding PIE's automations, one department at a time (Finance 
 - **Money is `Decimal`**, through `app/core/money.py`. Never float arithmetic on amounts. BHD = 3 places, half-up.
 - **Excel goes through `app/core/excel.py`**: never edit an uploaded file; outputs are new files.
 - **Changeable values are rules**, not constants: put them in `default_rules`, read them from `ctx.rules`. Conditions use `app/core/conditions.py`.
+- **Files go through `app/services/files.py`** into the data folder (`app/core/storage.py`, guide.md §6 Data folder). Never write files anywhere else, never overwrite one, never commit `Data/`.
 - **Audit everything that changes data** with `app/core/audit.record` in the same transaction. Never update or delete audit rows, stored files or rule versions.
 - **Workflows don't call outside systems.** Inputs and outputs go through connectors (`app/connectors/`); credentials go in `connections`, encrypted.
 - Design tokens only (`frontend/src/index.css`): no raw colours in components. Controls are at least 44px tall, with visible focus.
@@ -43,7 +44,7 @@ pnpm gen:api                                                    # regenerate API
 ## Gotchas
 
 - Don't use `pkill -f` from the shell; it matches its own command line. Stop processes by PID.
-- The full Docker stack (`docker compose up -d`) shares the Postgres job queue with a local dev API/worker. Don't run both workers at once, because they use different storage folders.
+- The full Docker stack (`docker compose up -d`) shares the Postgres job queue with a local dev API/worker. Don't run both workers at once, because they use different data folders.
 - AG Grid v36 needs `ModuleRegistry.registerModules([AllCommunityModule])` (done in `main.tsx`) and themes through `themeQuartz.withParams`.
 - Polars 2.x is strict about mixed int/float in one column when building frames.
 
@@ -53,3 +54,4 @@ pnpm gen:api                                                    # regenerate API
 - Automation-specific UI: `frontend/src/components/workflow/<name>/`.
 - Shared UI pieces: `frontend/src/components/ui/`. API calls: `frontend/src/lib/<domain>.ts`.
 - After finishing a phase or a piece of one, update its status in `implementation.md`.
+- Causeway: every condition, popup, calculation and fix is explained in `docs/causeway/README.md` (ERP upload columns in `docs/causeway/erp-files.md`). Update them in the same change, with the date.

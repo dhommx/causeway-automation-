@@ -1,10 +1,13 @@
 """Causeway step 1: reconcile Cash + AFS + PIE against the Zoho total for one date.
 
-marketing fund = Zoho total - (Cash + AFS + PIE)
+variance = Zoho total - (Cash + AFS + PIE), posted as the Batelco marketing fund
 
 The AFS amount is the 'Total' row of the AFS settlement report (sheet MerchantAUBTerminalWise),
 one block per terminal: a 'Terminal ID:...' row, a header row with 'Tran Amt', 'Commission',
 'VAT', 'Net', the transactions, then the 'Total' row. Amounts are text such as '8.500 BHD'.
+Each terminal's transactions must add up to its Total row (checked before the file is used).
+Transactions dated after the sales date belong to the next day: they are left out of the variance
+but stay in the AFS receipt.
 
 The Zoho total comes from the invoice export: every item line repeats its invoice's Total, so
 each invoice for the date is counted once.
@@ -18,6 +21,7 @@ from decimal import Decimal
 import polars as pl
 
 from app.core import excel
+from app.core.money import fmt as bhd
 from app.core.money import money
 from app.workflows.base import WorkflowInputError
 
@@ -31,6 +35,16 @@ class AfsTerminal:
     commission: Decimal
     vat: Decimal
     net: Decimal
+    # The transaction rows added up, per amount column, to check against the Total row.
+    summed: dict[str, Decimal] = field(default_factory=dict)
+
+
+@dataclass
+class AfsTransaction:
+    day: date
+    batch: str
+    terminal: str
+    tran_amt: Decimal
 
 
 @dataclass
@@ -39,9 +53,29 @@ class AfsReport:
     dates: list[date]
     transactions: int
     batches: list[str] = field(default_factory=list)  # the Batch column, used as the cheque no.
+    rows: list[AfsTransaction] = field(default_factory=list)
+
+    def after(self, day: date) -> list[AfsTransaction]:
+        """Transactions dated after the sales date: they belong to the next day."""
+        return [r for r in self.rows if r.day > day]
 
     def total(self, name: str) -> Decimal:
         return sum((getattr(t, name) for t in self.terminals), Decimal(0))
+
+    def mismatches(self) -> list[str]:
+        """Where a terminal's transactions do not add up to its Total row, one line each."""
+        problems = []
+        for t in self.terminals:
+            for column, attr in zip(
+                AFS_AMOUNTS, ("tran_amt", "commission", "vat", "net"), strict=True
+            ):
+                stated, summed = getattr(t, attr), t.summed.get(column, money(0))
+                if summed != stated:
+                    problems.append(
+                        f"Terminal {t.terminal}: the {column} rows add up to {bhd(summed)}, "
+                        f"but the Total row says {bhd(stated)}."
+                    )
+        return problems
 
 
 @dataclass
@@ -93,12 +127,14 @@ def read_afs(sheets: dict[str, pl.DataFrame]) -> AfsReport:
     dates: set[date] = set()
     transactions = 0
     batches: list[str] = []
+    found: list[AfsTransaction] = []
 
     for sheet, df in sheets.items():
         # The first sheet row becomes the column names when read, so put it back as a row.
         rows = [tuple(df.columns), *df.rows()]
         cols: dict[str, int] | None = None
         terminal = ""
+        summed: dict[str, Decimal] = {}
         for row in rows:
             cells = _cells(row)
             first = next((c for c in cells if c), "")
@@ -109,6 +145,7 @@ def read_afs(sheets: dict[str, pl.DataFrame]) -> AfsReport:
                 cols = {
                     c: cells.index(c) for c in ("Tran Date", "Batch", *AFS_AMOUNTS) if c in cells
                 }
+                summed = {c: money(0) for c in AFS_AMOUNTS if c in cols}
                 continue
             if cols is None:
                 continue
@@ -121,6 +158,7 @@ def read_afs(sheets: dict[str, pl.DataFrame]) -> AfsReport:
                         commission=values["Commission"],
                         vat=values["VAT"],
                         net=values["Net"],
+                        summed=summed,
                     )
                 )
                 cols = None
@@ -128,16 +166,24 @@ def read_afs(sheets: dict[str, pl.DataFrame]) -> AfsReport:
             if "Tran Date" in cols and (d := parse_date(row[cols["Tran Date"]])):
                 dates.add(d)
                 transactions += 1
+                for c in summed:
+                    summed[c] += amount(row[cols[c]])
                 batch = str(row[cols["Batch"]] or "").strip() if "Batch" in cols else ""
                 if batch and batch not in batches:
                     batches.append(batch)
+                tran_amt = amount(row[cols["Tran Amt"]]) if "Tran Amt" in cols else money(0)
+                found.append(AfsTransaction(d, batch, terminal or sheet, tran_amt))
 
     if not terminals:
         raise WorkflowInputError(
             "No 'Total' row was found in the AFS file. Is this the AFS settlement report?"
         )
     return AfsReport(
-        terminals=terminals, dates=sorted(dates), transactions=transactions, batches=batches
+        terminals=terminals,
+        dates=sorted(dates),
+        transactions=transactions,
+        batches=batches,
+        rows=found,
     )
 
 

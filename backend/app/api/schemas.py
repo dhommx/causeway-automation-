@@ -17,6 +17,8 @@ class FileSlotOut(BaseModel):
     accept: list[str]
     password_protected: bool
     kind: Literal["data", "reference"]
+    checked: bool
+    check_params: list[str]
 
 
 class ManualFieldOut(BaseModel):
@@ -73,6 +75,27 @@ class PreviewOut(BaseModel):
     total_rows: int
 
 
+class FileCheckIn(BaseModel):
+    slot: str
+    id: uuid.UUID
+    password: str | None = None
+    params: dict[str, Any] = Field(default_factory=dict)  # the slot's check_params values
+
+
+class NoticeOut(BaseModel):
+    title: str
+    message: str
+    columns: list[str] = Field(default_factory=list)
+    rows: list[list[Any]] = Field(default_factory=list)
+
+
+class FileCheckOut(BaseModel):
+    ok: bool
+    message: str
+    fills: dict[str, str] = Field(default_factory=dict)
+    notice: NoticeOut | None = None
+
+
 class RunInputFile(BaseModel):
     id: uuid.UUID
     password: str | None = None
@@ -82,6 +105,10 @@ class RunCreate(BaseModel):
     workflow_key: str
     inputs: dict[str, list[RunInputFile]] = Field(default_factory=dict)
     params: dict[str, Any] = Field(default_factory=dict)
+
+
+class RunSplit(BaseModel):
+    amounts: dict[str, str]
 
 
 class RunFileOut(BaseModel):
@@ -106,6 +133,7 @@ class RunOut(BaseModel):
     created_at: datetime
     started_at: datetime | None
     finished_at: datetime | None
+    folder: str | None
     files: list[RunFileOut]
 
 
@@ -141,6 +169,16 @@ class AuditEventOut(BaseModel):
     details: dict[str, Any]
 
     model_config = {"from_attributes": True}
+
+
+class SettingsOut(BaseModel):
+    data_folder: str
+    default_data_folder: str
+    upload_keep_days: int
+
+
+class SettingsSave(BaseModel):
+    data_folder: str | None = None  # None goes back to the default
 
 
 class HealthOut(BaseModel):

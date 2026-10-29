@@ -1,3 +1,4 @@
+import { Settings } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export default function TopBar() {
@@ -17,6 +18,14 @@ export default function TopBar() {
       <div className="flex items-center gap-4 text-sm text-white/80">
         <span className="hidden sm:inline">{today}</span>
         <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white">Finance</span>
+        <Link
+          to="/settings"
+          aria-label="Settings"
+          title="Settings"
+          className="inline-flex size-11 items-center justify-center rounded-full text-white/80 transition-colors duration-150 hover:bg-white/10 hover:text-white"
+        >
+          <Settings className="size-5" aria-hidden />
+        </Link>
       </div>
     </header>
   );

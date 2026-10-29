@@ -3,7 +3,8 @@
 Reading:  Polars + fastexcel (fast, handles .xlsx .xlsm .xls .xlsb .ods), Polars for .csv,
           msoffcrypto-tool to open password-protected files first.
 Writing:  XlsxWriter for new formatted workbooks (write_workbook),
-          openpyxl for changing an existing workbook and keeping what is in it (edit_workbook).
+          openpyxl for changing an existing workbook and keeping what is in it (edit_workbook),
+          and for filling a fixed layout such as an ERP upload file (fill_template).
 """
 
 import io
@@ -118,6 +119,36 @@ def edit_workbook(data: bytes, name: str) -> Iterator[openpyxl.Workbook]:
     out = io.BytesIO()
     wb.save(out)
     wb.saved = out.getvalue()  # type: ignore[attr-defined]
+
+
+def fill_template(template: Path, rows: list[list], first_row: int = 2) -> bytes:
+    """A new workbook from a template file (header row + one styled example row at first_row):
+    the rows are written from first_row down, each cell styled like the example row's cell in the
+    same column (font, fill, border, number format), and the header filter is stretched over them.
+    None leaves a cell empty. A callable value gets the row number and returns the cell value, for
+    formulas that point at their own row (lambda r: f"=A{r}"). Excel recalculates formulas when the
+    file is opened. The template itself is never changed."""
+    wb = openpyxl.load_workbook(template)
+    ws = wb.active
+    styles = [
+        (copy(c.font), copy(c.fill), copy(c.border), c.number_format, copy(c.alignment))
+        for c in ws[first_row]
+    ]
+    if ws.max_row >= first_row:
+        ws.delete_rows(first_row, ws.max_row - first_row + 1)
+    for r, values in enumerate(rows, start=first_row):
+        for col, (font, fill, border, number_format, alignment) in enumerate(styles, start=1):
+            value = values[col - 1] if col <= len(values) else None
+            cell = ws.cell(row=r, column=col, value=value(r) if callable(value) else value)
+            cell.font, cell.fill, cell.border = copy(font), copy(fill), copy(border)
+            cell.number_format, cell.alignment = number_format, copy(alignment)
+    if ws.auto_filter.ref:
+        last = openpyxl.utils.get_column_letter(ws.max_column)
+        ws.auto_filter.ref = f"A{first_row - 1}:{last}{max(first_row - 1 + len(rows), first_row)}"
+    wb.calculation.fullCalcOnLoad = True
+    out = io.BytesIO()
+    wb.save(out)
+    return out.getvalue()
 
 
 def add_sheet(

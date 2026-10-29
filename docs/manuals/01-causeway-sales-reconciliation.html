@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Causeway Sales Reconciliation: User Manual</title>
+<!-- Source for 01-causeway-sales-reconciliation.pdf. After editing, rebuild the PDF:
+     google-chrome --headless --no-pdf-header-footer --print-to-pdf=01-causeway-sales-reconciliation.pdf 01-causeway-sales-reconciliation.html -->
+<style>
+  @page { size: A4; margin: 11mm 13mm; }
+  :root { --primary: #093c66; --accent: #3fc1c9; --soft: #e3f6f7; --ink: #1d2733; --muted: #5b6876; --line: #d7dee5; --warn: #fff6e0; --warn-line: #e5b84a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 9.1pt/1.34 "Poppins", "Segoe UI", Arial, sans-serif; color: var(--ink); background: #fff; }
+  header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid var(--primary); padding-bottom: 5px; margin-bottom: 8px; }
+  h1 { margin: 0; font-size: 16pt; color: var(--primary); }
+  header p { margin: 1px 0 0; color: var(--muted); font-size: 8.6pt; }
+  .tag { text-align: right; font-size: 8pt; color: var(--muted); }
+  .tag b { display: block; color: var(--primary); font-size: 9pt; }
+  h2 { font-size: 10.5pt; color: #fff; background: var(--primary); margin: 9px 0 5px; padding: 3px 8px; border-radius: 3px; }
+  ol.steps { list-style: none; counter-reset: s var(--start, 0); margin: 0; padding: 0; }
+  ol.steps > li { counter-increment: s; position: relative; padding: 0 0 4px 27px; }
+  ol.steps > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 19px; height: 19px; border-radius: 50%; background: var(--accent); color: #fff; font-weight: 700; font-size: 8.6pt; text-align: center; line-height: 19px; }
+  ol.steps ul { margin: 1px 0 0; padding-left: 15px; }
+  b.ui { color: var(--primary); }
+  code { font: 8.6pt Consolas, monospace; background: var(--soft); padding: 0 3px; border-radius: 2px; }
+  table { width: 100%; border-collapse: collapse; margin: 3px 0 2px; font-size: 8.6pt; }
+  th, td { border: 1px solid var(--line); padding: 2px 6px; text-align: left; vertical-align: top; }
+  th { background: var(--soft); color: var(--primary); }
+  .note { background: var(--warn); border-left: 4px solid var(--warn-line); padding: 4px 8px; margin: 5px 0 0; font-size: 8.6pt; }
+  footer { margin-top: 7px; border-top: 1px solid var(--line); padding-top: 3px; font-size: 7.6pt; color: var(--muted); display: flex; justify-content: space-between; }
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Causeway Sales Reconciliation: User Manual</h1>
+    <p>PIE Automation Portal · Finance · Automation 01 · daily, Sunday to Thursday · about 5 minutes</p>
+  </div>
+  <div class="tag"><b>Version 1.0</b>29 Oct 2026</div>
+</header>
+
+<h2>A. Get the files ready (before opening the portal)</h2>
+<ol class="steps">
+  <li><b>AFS settlement report (Excel).</b> Download the attachment from the daily AFS email and save it. Note the <b>file password</b> that comes with the email; you will type it in the portal. Do not open and re-save the file.</li>
+  <li><b>Zoho invoice export (Excel).</b> In Zoho go to <b class="ui">Invoices</b>, filter by the <b>sales date</b>, and <b class="ui">Export</b>. The file is named <code>invoice_&lt;date&gt;_&lt;serial&gt;</code>. Upload it as it is; the portal cleans it for you.</li>
+  <li><b>Images from the email.</b> Save screenshots of the parts of the email that show the amounts:
+    <ul>
+      <li>the <b>Cash</b> amount (from the report / image),</li>
+      <li>the <b>PIE / MSwipe</b> amount (the PIE POS section of the same image as AFS).</li>
+    </ul>
+    The images are for reference only: the portal shows them beside your entries so you can read the amounts. It does not read numbers from them.</li>
+</ol>
+
+<h2>B. Run the automation</h2>
+<ol class="steps" style="--start: 3">
+  <li>Open the portal (<code>http://&lt;portal-address&gt;:3500</code>) and click the <b class="ui">Causeway Sales Reconciliation</b> card.</li>
+  <li>In <b class="ui">Inputs › Files</b>, drop or click to choose each file in its own box:
+    <ul>
+      <li><b class="ui">AFS settlement report</b>: the AFS Excel, then type the password in <b class="ui">File password</b>. A small green tick, <b>Total matches</b>, confirms the transactions add up to the file's Total row; if it shows red, the file is wrong and Run stays disabled.</li>
+      <li><b class="ui">Zoho invoice export</b>: the Zoho Excel.</li>
+      <li><b class="ui">Images (for reference)</b>: the email screenshots (you can add more than one). Click a file to see it in <b class="ui">Preview</b>.</li>
+    </ul></li>
+  <li>In <b class="ui">Manual entries</b>, fill in <b class="ui">Sales date</b>, <b class="ui">Cash amount (BHD)</b>, <b class="ui">Cash deposit date</b> (same day or later; shown on Receipt (Cash)) and <b class="ui">PIE / MSwipe amount (BHD)</b>, reading the amounts from the images. Use 3 decimals, e.g. <code>100.500</code>. AFS rows dated after the sales date are listed in a popup and fill <b class="ui">AFS amount for the next day</b> (left out of the Variance, kept in Receipt (AFS)). Put yesterday's AFS for this date in <b class="ui">AFS amount from the previous day</b>. Changing a filled value warns you; running is then your responsibility.</li>
+  <li>Click <b class="ui">Run automation</b>. Check the values in <b class="ui">Are these values correct?</b> and press <b class="ui">Yes, run</b> (or <b class="ui">Go back and edit</b>).</li>
+</ol>
+
+<h2>C. Check the result and post to PACT</h2>
+<ol class="steps" style="--start: 7">
+  <li>Read the three figures at the top: <b>Zoho total</b>, <b>Cash + AFS + PIE</b> and <b>Variance</b> (Zoho total minus the payments). Read every <b>warning</b> before posting:
+    <table>
+      <tr><th>Warning</th><th>What to do</th></tr>
+      <tr><td>AFS file dated a different day</td><td>Wrong AFS report uploaded: get the report for the sales date and run again.</td></tr>
+      <tr><td>Payments are more than the Zoho total</td><td>Variance is negative: re-check Cash and PIE against the images, and the Zoho date filter.</td></tr>
+      <tr><td>AFS commission does not match the file</td><td>Compare the commission with the AFS Excel before posting the AFS receipt.</td></tr>
+    </table></li>
+  <li>Open the <b class="ui">Result</b> tabs and type the values into PACT in this order:
+    <table>
+      <tr><th>#</th><th>Result tab</th><th>PACT document</th></tr>
+      <tr><td>1</td><td>Direct Sales Invoice</td><td>Finance › Direct Sales Invoice (product codes and quantities)</td></tr>
+      <tr><td>2</td><td>Credit Note EVD + KFC / Credit Note (JV)</td><td>Credit Note (JV Type) for EVD + KFC (only shown when the day has them)</td></tr>
+      <tr><td>3</td><td>Receipt (Cash)</td><td>Cash Receipt</td></tr>
+      <tr><td>4</td><td>Receipt (AFS)</td><td>Bank Receipt, AFS (2.2% commission line included)</td></tr>
+      <tr><td>5</td><td>Receipt (PIE)</td><td>Bank Receipt, MSwipe (1.65% QR charges line included)</td></tr>
+      <tr><td>6</td><td>Reconciliation › Variance</td><td>Credit Note (JV Type), Batelco marketing fund</td></tr>
+    </table></li>
+  <li>Download the outputs with the download buttons: <code>causeway_reconciliation_YYYYMMDD.xlsx</code> (every result table) and the Zoho file with a new <b>Formatted</b> sheet (the original sheet is unchanged).</li>
+  <li>Every run is saved for audit. Open the <b class="ui">History</b> tab to see past runs, their inputs and outputs.</li>
+</ol>
+
+<div class="note"><b>Good to know:</b> the portal never changes your uploaded files. If you refresh the page, choose <b class="ui">Keep my data</b> to continue, but type the AFS password again, because passwords are never saved. If a run fails, read the message, correct the file or the value, and run again.</div>
+
+<footer><span>PIE Finance · Causeway Sales Reconciliation · User manual</span><span>Questions: Automation Portal team</span></footer>
+</body>
+</html>

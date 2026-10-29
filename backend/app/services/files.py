@@ -1,10 +1,15 @@
 import uuid
+from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from app.core import audit, excel
-from app.core.storage import get_storage
+from app.core import audit, excel, storage
 from app.models import StoredFile
+from app.services import settings
+
+
+class FileGoneError(LookupError):
+    """The file's record exists but the file is no longer on disk (e.g. an old unused upload)."""
 
 
 def save(
@@ -12,12 +17,15 @@ def save(
     name: str,
     data: bytes,
     content_type: str,
-    source: str = "upload",
-    actor: str = audit.ANONYMOUS,
+    source: str,
+    actor: str,
+    folder: Path,
 ) -> StoredFile:
-    sha = get_storage().put(data)
+    """Write the file into folder (never over another file) and record it."""
+    path, sha = storage.write_new(folder, name, data)
     row = StoredFile(
         sha256=sha,
+        path=str(path),
         original_name=name,
         content_type=content_type or "application/octet-stream",
         size_bytes=len(data),
@@ -26,8 +34,21 @@ def save(
     )
     db.add(row)
     db.flush()
-    audit.record(db, f"file.{source}", "file", row.id, {"name": name, "sha256": sha}, actor)
+    audit.record(
+        db,
+        f"file.{source}",
+        "file",
+        row.id,
+        {"name": name, "sha256": sha, "path": str(path)},
+        actor,
+    )
     return row
+
+
+def save_upload(db: Session, name: str, data: bytes, content_type: str, actor: str) -> StoredFile:
+    """An upload waits in <data folder>/_uploads/<date>/ until a run copies it into its folder."""
+    folder = settings.data_folder(db) / storage.UPLOADS / storage.local_now().strftime("%Y-%m-%d")
+    return save(db, name, data, content_type, "upload", actor, folder)
 
 
 def get(db: Session, file_id: uuid.UUID) -> StoredFile | None:
@@ -35,7 +56,10 @@ def get(db: Session, file_id: uuid.UUID) -> StoredFile | None:
 
 
 def read(row: StoredFile) -> bytes:
-    return get_storage().get(row.sha256)
+    try:
+        return storage.read(row.path)
+    except FileNotFoundError as exc:
+        raise FileGoneError(f"{row.original_name} is no longer kept. Upload it again.") from exc
 
 
 def preview(row: StoredFile, sheet: str | None, password: str | None, limit: int) -> dict:

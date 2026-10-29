@@ -7,7 +7,8 @@ type Props = {
   title: string;
   children: ReactNode;
   confirmLabel: string;
-  cancelLabel: string;
+  /** Leave out for a notice with one answer; Esc then counts as that answer. */
+  cancelLabel?: string;
   onConfirm: () => void;
   onCancel: () => void;
 };
@@ -46,9 +47,11 @@ export default function ConfirmDialog({ open, title, children, confirmLabel, can
       </h2>
       <div className="mt-2 text-sm text-muted-foreground">{children}</div>
       <div className="mt-6 flex flex-wrap justify-end gap-2">
-        <Button variant="secondary" onClick={onCancel}>
-          {cancelLabel}
-        </Button>
+        {cancelLabel && (
+          <Button variant="secondary" onClick={onCancel}>
+            {cancelLabel}
+          </Button>
+        )}
         <Button ref={confirm} onClick={onConfirm}>
           {confirmLabel}
         </Button>

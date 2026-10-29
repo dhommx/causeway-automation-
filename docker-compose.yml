@@ -30,11 +30,11 @@ services:
     command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 4500"
     environment: &backend-env
       AP_DATABASE_URL: postgresql+psycopg://${DB_USER:-automation}:${DB_PASSWORD:-automation}@db:5432/${DB_NAME:-automation_portal}
-      AP_STORAGE_ROOT: /data/storage
+      AP_DATA_ROOT: /portal/Data
       AP_SECRET_KEY: ${AP_SECRET_KEY:-ZGV2LW9ubHkta2V5LWNoYW5nZS1tZS1wbGVhc2UhISE=}
       AP_CORS_ORIGINS: '["http://localhost:3500"]'
     volumes:
-      - storage_data:/data/storage
+      - ${DATA_FOLDER:-./Data}:/portal/Data
 
   worker:
     build: ./backend
@@ -45,7 +45,7 @@ services:
     command: python -m procrastinate --app=app.jobs.app worker
     environment: *backend-env
     volumes:
-      - storage_data:/data/storage
+      - ${DATA_FOLDER:-./Data}:/portal/Data
 
   web:
     build: ./frontend
@@ -57,4 +57,3 @@ services:
 
 volumes:
   db_data:
-  storage_data:

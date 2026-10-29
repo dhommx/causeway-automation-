@@ -1,4 +1,4 @@
-"""Tests use their own database (automation_portal_test) and storage folder, never the dev ones."""
+"""Tests use their own database (automation_portal_test) and data folder, never the dev ones."""
 
 import os
 import tempfile
@@ -14,7 +14,7 @@ TEST_DB = "automation_portal_test"
 os.environ["AP_DATABASE_URL"] = (
     BASE.replace("postgresql://", "postgresql+psycopg://").rsplit("/", 1)[0] + f"/{TEST_DB}"
 )
-os.environ["AP_STORAGE_ROOT"] = tempfile.mkdtemp(prefix="ap-test-storage-")
+os.environ["AP_DATA_ROOT"] = tempfile.mkdtemp(prefix="ap-test-data-")
 os.environ["AP_RUN_INLINE"] = "true"
 
 

@@ -6,8 +6,8 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.connectors.base import Destination, Source, register
-from app.core.storage import get_storage
 from app.models import StoredFile
+from app.services import files as file_service
 from app.workflows.base import InputFile, OutputFile
 
 
@@ -32,7 +32,7 @@ class UploadSource(Source):
                 InputFile(
                     slot=slot,
                     name=row.original_name,
-                    data=get_storage().get(row.sha256),
+                    data=file_service.read(row),
                     password=item.get("password") or None,
                 )
             )
@@ -41,7 +41,7 @@ class UploadSource(Source):
 
 @register
 class DownloadDestination(Destination):
-    """Keeps outputs in storage so they can be downloaded from the run's page (the default)."""
+    """Keeps outputs in the run's output folder, downloadable from its page (the default)."""
 
     kind = "download"
     label = "Download from the portal"

@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import files, rules, runs, system, workflows
+from app.api.routes import files, rules, runs, settings, system, workflows
 from app.config import get_settings
 from app.workflows.registry import workflows as registered
 
@@ -36,5 +36,5 @@ app.add_middleware(
 )
 
 API_PREFIX = "/api/v1"
-for module in (system, workflows, files, runs, rules):
+for module in (system, workflows, files, runs, rules, settings):
     app.include_router(module.router, prefix=API_PREFIX)
